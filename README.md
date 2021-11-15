@@ -55,5 +55,5 @@ This module creates an SNS topic which is in turn used by CloudWatch to publish 
 ```shell
 terraform init
 terraform plan -out plans/initPlan
-terraform apply plansinitPlan
+terraform apply plans/initPlan
 ```

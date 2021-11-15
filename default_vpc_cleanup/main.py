@@ -6,6 +6,7 @@ from boto3 import (
 
 
 def fetchDefaultVPCs(_client: client) -> List[str]:
+    """Fetch the default VPC"""
     vpc_list = []
     vpcs = _client.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])[
         "Vpcs"
@@ -17,7 +18,8 @@ def fetchDefaultVPCs(_client: client) -> List[str]:
     return vpc_list
 
 
-def deleteVpc(vpc) -> bool:
+def deleteVpc(vpc):
+    """Delete VPC given a VPC object"""
     try:
         print(f"Deleting {vpc.id}...", end="")
         vpc.delete()
@@ -27,6 +29,9 @@ def deleteVpc(vpc) -> bool:
 
 
 def deleteSecurityGroups(vpc):
+    """Delete all secuirty groups in a VPC
+    Skip the deletion of default SGs as they cant be deleted
+    """
     try:
         vpc_sgs = vpc.security_groups.all()
         if vpc_sgs:
@@ -45,6 +50,7 @@ def deleteSecurityGroups(vpc):
 
 
 def deleteIGW(vpc, vpc_id):
+    """Delete all Internet gateways attached to a VPC"""
     try:
         igws = vpc.internet_gateways.all()
         for igw in igws:
@@ -58,6 +64,7 @@ def deleteIGW(vpc, vpc_id):
 
 
 def deleteSubnets(vpc):
+    """Delete all subnets in a VPC"""
     try:
         subnets = vpc.subnets.all()
         for subnet in subnets:
@@ -69,6 +76,7 @@ def deleteSubnets(vpc):
 
 
 def deleteRouteTables(vpc):
+    """Delete all routetables in a VPC except the main table"""
     try:
         route_tables = vpc.route_tables.all()
         for rtb in route_tables:
@@ -86,6 +94,7 @@ def deleteRouteTables(vpc):
 
 
 def deleteNacls(vpc):
+    """Delete all Nacls in a VPC except the default nacl"""
     try:
         nacls = vpc.network_acls.all()
         for nacl in nacls:
@@ -103,8 +112,10 @@ def deleteNacls(vpc):
 
 
 _client = client("ec2")
-
+# Fetch the description of all Regions in an account
 region_dump = _client.describe_regions()["Regions"]
+
+# Itterate through each region
 for region in region_dump:
     _client = client("ec2", region_name=region["RegionName"])
     _ec2 = resource("ec2", region_name=region["RegionName"])
@@ -119,6 +130,9 @@ for region in region_dump:
             f"Found no Vpc in {region['RegionName']}. \033[38;5;208mSkipping...\033[0;0m"
         )
     for vpc in default_vpcs:
+        """A specific Order needs to be followed to avoid dependancy errors
+
+        RouteTable -> IGW -> Subnets -> Nacls -> Secuirity Groups -> VPC"""
         vpc_r = _ec2.Vpc(vpc)
         deleteRouteTables(vpc_r)
         deleteIGW(vpc_r, vpc)
